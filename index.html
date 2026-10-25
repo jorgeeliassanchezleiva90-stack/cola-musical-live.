@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cola Musical LIVE</title>
+<style>
+:root {
+  color-scheme: dark;
+  --fondo: #0b0f12;
+  --panel: #151c21;
+  --borde: #2b383f;
+  --verde: #c7ff4a;
+  --texto: #f4f7f8;
+  --suave: #a5b1b7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 22px;
+  background: var(--fondo); color: var(--texto);
+  font-family: Arial, sans-serif;
+}
+main { max-width: 1000px; margin: auto; }
+header { margin-bottom: 22px; }
+header h1 { margin-bottom: 5px; }
+header p, .suave { color: var(--suave); }
+h2 { font-size: 18px; }
+button, input {
+  font: inherit; border-radius: 9px; padding: 11px;
+}
+input {
+  width: 100%; background: #0b1013;
+  color: white; border: 1px solid var(--borde);
+}
+button { cursor: pointer; border: 0; font-weight: bold; }
+.principal { background: var(--verde); color: #111; }
+.secundario { background: #28343b; color: white; }
+.peligro { background: #49272c; color: #ffc0c5; }
+.pestanas { display: flex; gap: 8px; margin-bottom: 16px; }
+.pestana { background: #20292f; color: white; }
+.pestana.activa { background: var(--verde); color: #111; }
+.columnas {
+  display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px;
+}
+.panel {
+  min-width: 0; background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 15px; padding: 17px; margin-bottom: 15px;
+}
+.campo { margin-bottom: 13px; }
+.campo label { display: block; margin-bottom: 6px; font-size: 13px; }
+.ahora {
+  padding: 18px; border-radius: 12px;
+  border: 1px solid #42572a; background: #1a2618;
+  margin-bottom: 16px;
+}
+.etiqueta { color: var(--verde); font-size: 11px; font-weight: bold; }
+.titulo-cancion { font-size: 21px; font-weight: bold; margin: 10px 0 5px; overflow-wrap: anywhere; }
+.fila {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: #0e1418; border: 1px solid var(--borde);
+  border-radius: 11px; padding: 12px; margin: 9px 0;
+}
+.numero { color: var(--verde); font-weight: bold; padding: 5px; }
+.detalle { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.artista, .usuario { color: var(--suave); font-size: 13px; margin-top: 5px; }
+.usuario { color: #9ad8ff; }
+.acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.acciones button { font-size: 12px; padding: 8px; }
+.oculto { display: none; }
+.aviso {
+  font-size: 12px; color: var(--suave); line-height: 1.5;
+  border: 1px solid var(--borde); padding: 12px;
+  border-radius: 10px; margin-top: 15px;
+}
+.vacio { padding: 22px; text-align: center; color: var(--suave); }
+@media (max-width: 700px) {
+  body { padding: 12px; }
+  .columnas { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="etiqueta">TU HERRAMIENTA PARA DIRECTOS</div>
+  <h1>🎵 Cola Musical LIVE</h1>
+  <p>Organiza las canciones que te piden en TikTok.</p>
+</header>
+
+<div class="pestanas">
+  <button class="pestana activa" id="botonMod" onclick="ver('mod')">🔧 Moderador</button>
+  <button class="pestana" id="botonPub" onclick="ver('pub')">👀 Vista pública</button>
+</div>
+
+<section id="mod">
+<div class="columnas">
+  <div class="panel">
+    <h2>➕ Añadir canción</h2>
+    <form id="formulario">
+      <div class="campo">
+        <label for="titulo">Nombre de la canción *</label>
+        <input id="titulo" required maxlength="120" placeholder="Ej. Blinding Lights">
+      </div>
+      <div class="campo">
+        <label for="artista">Artista</label>
+        <input id="artista" maxlength="100" placeholder="Ej. The Weeknd">
+      </div>
+      <div class="campo">
+        <label for="usuario">Usuario que la pidió</label>
+        <input id="usuario" maxlength="60" placeholder="@usuario">
+      </div>
+      <button class="principal" type="submit">＋ Añadir a la cola</button>
+    </form>
+    <div class="aviso">
+      La cola se guarda en este navegador. Esta versión todavía no se sincroniza
+      con otros dispositivos ni reproduce música automáticamente.
+    </div>
+    <div class="acciones">
+      <button class="secundario" onclick="duplicados()">Quitar duplicados</button>
+      <button class="peligro" onclick="vaciar()">Vaciar cola</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ahora">
+      <div class="etiqueta">♫ SONANDO AHORA</div>
+      <div id="actualTitulo" class="titulo-cancion">Aún no hay canción</div>
+      <div id="actualArtista" class="artista">Elige una canción de la cola</div>
+      <div id="actualUsuario" class="usuario"></div>
+      <div class="acciones">
+        <button class="principal" onclick="terminar()">✓ Terminada</button>
+        <button class="secundario" onclick="quitarActual()">Quitar actual</button>
+      </div>
+    </div>
+    <h2>Próximas canciones <span id="cantidad" class="suave"></span></h2>
+    <div id="cola"></div>
+  </div>
+</div>
+</section>
+
+<section id="pub" class="oculto">
+  <div class="panel">
+    <div class="etiqueta">♫ SONANDO AHORA</div>
+    <div id="pubTitulo" class="titulo-cancion">Aún no hay canción</div>
+    <div id="pubArtista" class="artista"></div>
+    <div id="pubUsuario" class="usuario"></div>
+  </div>
+  <div class="panel">
+    <h2>🎧 Próximas canciones <span id="pubCantidad" class="suave"></span></h2>
+    <div id="pubCola"></div>
+  </div>
+  <div class="aviso">
+    Esta vista funciona dentro de este navegador. Para compartirla con tus
+    espectadores necesitaremos publicar la app en internet.
+  </div>
+</section>
+</main>
+
+<script>
+const CLAVE = "mi_cola_musical_live";
+let datos = { actual: null, cola: [] };
+
+try {
+  const guardado = localStorage.getItem(CLAVE);
+  if (guardado) datos = JSON.parse(guardado);
+  if (!Array.isArray(datos.cola)) datos.cola = [];
+} catch (e) {}
+
+function guardar() {
+  try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
+  catch (e) { alert("No se pudo guardar en el navegador."); }
+  dibujar();
+}
+
+function escapar(valor) {
+  return String(valor || "").replace(/[&<>"']/g, letra => ({
+    "&":"&amp;", "<":"&lt;", ">":"&gt;",
+    '"':"&quot;", "'":"&#39;"
+  })[letra]);
+}
+
+function ver(pantalla) {
+  document.getElementById("mod").classList.toggle("oculto", pantalla !== "mod");
+  document.getElementById("pub").classList.toggle("oculto", pantalla !== "pub");
+  document.getElementById("botonMod").classList.toggle("activa", pantalla === "mod");
+  document.getElementById("botonPub").classList.toggle("activa", pantalla === "pub");
+  dibujar();
+}
+
+document.getElementById("formulario").addEventListener("submit", evento => {
+  evento.preventDefault();
+  const titulo = document.getElementById("titulo").value.trim();
+  const artista = document.getElementById("artista").value.trim();
+  const usuario = document.getElementById("usuario").value.trim();
+  if (!titulo) return;
+
+  datos.cola.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    titulo, artista, usuario
+  });
+  evento.target.reset();
+  guardar();
+});
+
+function bloqueCancion(c, i, controles) {
+  let botones = "";
+  if (controles) {
+    botones = `<div class="acciones">
+      <button class="principal" onclick="ponerActual('${c.id}')">▶ Poner ahora</button>
+      <button class="secundario" onclick="mover('${c.id}',-1)">↑ Subir</button>
+      <button class="secundario" onclick="mover('${c.id}',1)">↓ Bajar</button>
+      <button class="peligro" onclick="eliminar('${c.id}')">Eliminar</button>
+    </div>`;
+  }
+  return `<div class="fila">
+    <div class="numero">${i + 1}</div>
+    <div class="detalle">
+      <strong>${escapar(c.titulo)}</strong>
+      <div class="artista">${escapar(c.artista || "Artista no indicado")}</div>
+      <div class="usuario">${c.usuario ? "Pedido por " + escapar(c.usuario) : "Usuario no indicado"}</div>
+      ${botones}
+    </div>
+  </div>`;
+}
+
+function dibujarActual(prefijo) {
+  const c = datos.actual;
+  document.getElementById(prefijo + "Titulo").textContent = c ? c.titulo : "Aún no hay canción";
+  document.getElementById(prefijo + "Artista").textContent = c ? (c.artista || "Artista no indicado") : "Elige una canción de la cola";
+  document.getElementById(prefijo + "Usuario").textContent = c && c.usuario ? "Pedido por " + c.usuario : "";
+}
+
+function dibujar() {
+  dibujarActual("actual");
+  dibujarActual("pub");
+
+  const total = datos.cola.length;
+  document.getElementById("cantidad").textContent = "(" + total + ")";
+  document.getElementById("pubCantidad").textContent = "(" + total + ")";
+
+  document.getElementById("cola").innerHTML = total
+    ? datos.cola.map((c,i) => bloqueCancion(c,i,true)).join("")
+    : '<div class="vacio">Aún no hay canciones. Añade una con el formulario.</div>';
+
+  document.getElementById("pubCola").innerHTML = total
+    ? datos.cola.map((c,i) => bloqueCancion(c,i,false)).join("")
+    : '<div class="vacio">No hay canciones en espera.</div>';
+}
+
+function ponerActual(id) {
+  const indice = datos.cola.findIndex(c => c.id === id);
+  if (indice < 0) return;
+  datos.actual = datos.cola.splice(indice,1)[0];
+  guardar();
+}
+
+function mover(id, direccion) {
+  const indice = datos.cola.findIndex(c => c.id === id);
+  const destino = indice + direccion;
+  if (indice < 0 || destino < 0 || destino >= datos.cola.length) return;
+  [datos.cola[indice], datos.cola[destino]] =
+    [datos.cola[destino], datos.cola[indice]];
+  guardar();
+}
+
+function eliminar(id) {
+  datos.cola = datos.cola.filter(c => c.id !== id);
+  guardar();
+}
+
+function terminar() {
+  if (!datos.actual) return alert("No hay canción actual.");
+  datos.actual = null;
+  guardar();
+}
+
+function quitarActual() {
+  datos.actual = null;
+  guardar();
+}
+
+function duplicados() {
+  const antes = datos.cola.length;
+  const vistos = new Set();
+  datos.cola = datos.cola.filter(c => {
+    const clave = (c.titulo + "|" + c.artista).toLowerCase().trim();
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
+  guardar();
+  alert("Duplicados eliminados: " + (antes - datos.cola.length));
+}
+
+function vaciar() {
+  if (!confirm("¿Seguro que quieres vaciar las canciones en espera?")) return;
+  datos.cola = [];
+  guardar();
+}
+
+dibujar();
+</script>
+</body>
+</html>
