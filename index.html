@@ -34,6 +34,7 @@ input {
   color: white; border: 1px solid var(--borde);
 }
 button { cursor: pointer; border: 0; font-weight: bold; }
+button:disabled { opacity: .45; cursor: not-allowed; }
 .principal { background: var(--verde); color: #111; }
 .secundario { background: #28343b; color: white; }
 .peligro { background: #49272c; color: #ffc0c5; }
@@ -56,7 +57,10 @@ button { cursor: pointer; border: 0; font-weight: bold; }
   margin-bottom: 16px;
 }
 .etiqueta { color: var(--verde); font-size: 11px; font-weight: bold; }
-.titulo-cancion { font-size: 21px; font-weight: bold; margin: 10px 0 5px; overflow-wrap: anywhere; }
+.titulo-cancion {
+  font-size: 21px; font-weight: bold; margin: 10px 0 5px;
+  overflow-wrap: anywhere;
+}
 .fila {
   display: flex; gap: 10px; align-items: flex-start;
   background: #0e1418; border: 1px solid var(--borde);
@@ -68,13 +72,39 @@ button { cursor: pointer; border: 0; font-weight: bold; }
 .usuario { color: #9ad8ff; }
 .acciones { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .acciones button { font-size: 12px; padding: 8px; }
-.oculto { display: none; }
+.oculto { display: none !important; }
 .aviso {
   font-size: 12px; color: var(--suave); line-height: 1.5;
   border: 1px solid var(--borde); padding: 12px;
   border-radius: 10px; margin-top: 15px;
 }
 .vacio { padding: 22px; text-align: center; color: var(--suave); }
+.busqueda { border-top: 1px solid var(--borde); margin-top: 18px; padding-top: 8px; }
+.resultado-musica {
+  display: flex; gap: 11px; align-items: center;
+  background: #0e1418; border: 1px solid var(--borde);
+  border-radius: 11px; padding: 10px; margin: 9px 0;
+}
+.portada {
+  width: 58px; height: 58px; object-fit: cover;
+  border-radius: 8px; flex-shrink: 0; background: #20292f;
+}
+.portada-grande {
+  width: 88px; height: 88px; object-fit: cover;
+  border-radius: 10px; flex-shrink: 0; background: #20292f;
+}
+.resultado-detalle { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.resultado-musica .acciones { margin-top: 7px; }
+.estado-busqueda { color: var(--suave); font-size: 13px; line-height: 1.5; }
+.actual-cabecera { display: flex; gap: 13px; align-items: center; }
+.soundcloud-marco {
+  position: relative; width: 100%; height: 120px; min-height: 120px;
+  margin-top: 10px; background: #f5f5f5;
+  border-radius: 10px; overflow: hidden;
+}
+.soundcloud-marco iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+}
 @media (max-width: 700px) {
   body { padding: 12px; }
   .columnas { grid-template-columns: 1fr; }
@@ -111,11 +141,30 @@ button { cursor: pointer; border: 0; font-weight: bold; }
         <label for="usuario">Usuario que la pidió</label>
         <input id="usuario" maxlength="60" placeholder="@usuario">
       </div>
+      <div class="campo">
+        <label for="soundcloudUrl">Enlace de la pista de SoundCloud</label>
+        <input id="soundcloudUrl" type="url" placeholder="Pega aquí el enlace de la pista">
+      </div>
       <button class="principal" type="submit">＋ Añadir a la cola</button>
     </form>
+
+    <div class="busqueda">
+      <h2>🔎 Buscar en el catálogo musical</h2>
+      <p class="suave" style="font-size:13px">
+        Busca la canción y elige el resultado correcto.
+      </p>
+      <div class="campo">
+        <label for="busquedaMusica">Título o artista</label>
+        <input id="busquedaMusica" maxlength="120" placeholder="Ej. Blinding Lights - The Weeknd">
+      </div>
+      <button class="secundario" id="botonBuscarMusica" type="button" onclick="buscarCatalogo()">Buscar canciones</button>
+      <div id="estadoBusqueda" class="estado-busqueda" aria-live="polite"></div>
+      <div id="resultadosBusqueda"></div>
+    </div>
+
     <div class="aviso">
-      La cola se guarda en este navegador. Esta versión todavía no se sincroniza
-      con otros dispositivos ni reproduce música automáticamente.
+      La cola se guarda en este navegador. No se sincroniza con otros dispositivos.
+      El catálogo ofrece vistas previas cuando están disponibles, no canciones completas.
     </div>
     <div class="acciones">
       <button class="secundario" onclick="duplicados()">Quitar duplicados</button>
@@ -126,12 +175,23 @@ button { cursor: pointer; border: 0; font-weight: bold; }
   <div class="panel">
     <div class="ahora">
       <div class="etiqueta">♫ SONANDO AHORA</div>
-      <div id="actualTitulo" class="titulo-cancion">Aún no hay canción</div>
-      <div id="actualArtista" class="artista">Elige una canción de la cola</div>
-      <div id="actualUsuario" class="usuario"></div>
+      <div class="actual-cabecera">
+        <img id="actualPortada" class="portada-grande oculto" alt="Portada">
+        <div>
+          <div id="actualTitulo" class="titulo-cancion">Aún no hay canción</div>
+          <div id="actualArtista" class="artista">Elige una canción de la cola</div>
+          <div id="actualUsuario" class="usuario"></div>
+        </div>
+      </div>
       <div class="acciones">
-        <button class="principal" onclick="terminar()">✓ Terminada</button>
+        <button class="secundario" id="botonVistaPrevia" onclick="reproducirActualPreview()" disabled>▶ Reproducir</button>
+        <button class="secundario" onclick="detenerPreview()">■ Detener audio</button>
+        <button class="principal" onclick="terminar()">✓ Siguiente / terminada</button>
         <button class="secundario" onclick="quitarActual()">Quitar actual</button>
+      </div>
+      <div id="reproductorSoundCloud" class="soundcloud-marco oculto"></div>
+      <div id="avisoSoundCloud" class="estado-busqueda">
+        Pega el enlace de SoundCloud de la canción para reproducirla completa.
       </div>
     </div>
     <h2>Próximas canciones <span id="cantidad" class="suave"></span></h2>
@@ -143,34 +203,54 @@ button { cursor: pointer; border: 0; font-weight: bold; }
 <section id="pub" class="oculto">
   <div class="panel">
     <div class="etiqueta">♫ SONANDO AHORA</div>
-    <div id="pubTitulo" class="titulo-cancion">Aún no hay canción</div>
-    <div id="pubArtista" class="artista"></div>
-    <div id="pubUsuario" class="usuario"></div>
+    <div class="actual-cabecera">
+      <img id="pubPortada" class="portada-grande oculto" alt="Portada">
+      <div>
+        <div id="pubTitulo" class="titulo-cancion">Aún no hay canción</div>
+        <div id="pubArtista" class="artista"></div>
+        <div id="pubUsuario" class="usuario"></div>
+      </div>
+    </div>
+    <div id="pubReproductorSoundCloud" class="soundcloud-marco oculto"></div>
   </div>
   <div class="panel">
     <h2>🎧 Próximas canciones <span id="pubCantidad" class="suave"></span></h2>
     <div id="pubCola"></div>
   </div>
   <div class="aviso">
-    Esta vista funciona dentro de este navegador. Para compartirla con tus
-    espectadores necesitaremos publicar la app en internet.
+    Esta vista funciona dentro de este navegador. Para compartirla con tus espectadores
+    necesitaremos publicar la app en internet.
   </div>
 </section>
 </main>
+<audio id="audioPreview" preload="none"></audio>
 
+<script src="https://w.soundcloud.com/player/api.js"></script>
 <script>
 const CLAVE = "mi_cola_musical_live";
 let datos = { actual: null, cola: [] };
+let seleccionCatalogo = null;
+let autoIniciarActual = false;
+let iframeWidgetVinculado = null;
+let avanzandoPorFin = false;
+let resultadosCatalogo = [];
+
+const audioPreview = document.getElementById("audioPreview");
 
 try {
   const guardado = localStorage.getItem(CLAVE);
   if (guardado) datos = JSON.parse(guardado);
   if (!Array.isArray(datos.cola)) datos.cola = [];
-} catch (e) {}
+} catch (e) {
+  datos = { actual: null, cola: [] };
+}
 
 function guardar() {
-  try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
-  catch (e) { alert("No se pudo guardar en el navegador."); }
+  try {
+    localStorage.setItem(CLAVE, JSON.stringify(datos));
+  } catch (e) {
+    alert("No se pudo guardar en el navegador.");
+  }
   dibujar();
 }
 
@@ -191,21 +271,39 @@ function ver(pantalla) {
 
 document.getElementById("formulario").addEventListener("submit", evento => {
   evento.preventDefault();
+
   const titulo = document.getElementById("titulo").value.trim();
   const artista = document.getElementById("artista").value.trim();
   const usuario = document.getElementById("usuario").value.trim();
+  const enlaceEscrito = document.getElementById("soundcloudUrl").value.trim();
+  const soundcloudUrl = normalizarUrlSoundCloud(enlaceEscrito);
+
   if (!titulo) return;
+
+  if (enlaceEscrito && !soundcloudUrl) {
+    alert("Pega un enlace válido de una pista de SoundCloud.");
+    return;
+  }
 
   datos.cola.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-    titulo, artista, usuario
+    titulo,
+    artista,
+    usuario,
+    portada: seleccionCatalogo ? seleccionCatalogo.portada : "",
+    previewUrl: seleccionCatalogo ? seleccionCatalogo.previewUrl : "",
+    trackId: seleccionCatalogo ? seleccionCatalogo.trackId : "",
+    soundcloudUrl
   });
+
   evento.target.reset();
+  seleccionCatalogo = null;
   guardar();
 });
 
 function bloqueCancion(c, i, controles) {
   let botones = "";
+
   if (controles) {
     botones = `<div class="acciones">
       <button class="principal" onclick="ponerActual('${c.id}')">▶ Poner ahora</button>
@@ -214,8 +312,10 @@ function bloqueCancion(c, i, controles) {
       <button class="peligro" onclick="eliminar('${c.id}')">Eliminar</button>
     </div>`;
   }
+
   return `<div class="fila">
     <div class="numero">${i + 1}</div>
+    ${c.portada ? `<img class="portada" src="${escapar(c.portada)}" alt="Portada" loading="lazy">` : ""}
     <div class="detalle">
       <strong>${escapar(c.titulo)}</strong>
       <div class="artista">${escapar(c.artista || "Artista no indicado")}</div>
@@ -225,11 +325,90 @@ function bloqueCancion(c, i, controles) {
   </div>`;
 }
 
+function soundcloudPlayer(url, autoplay = false, id = "scWidgetActual") {
+  const normalizada = normalizarUrlSoundCloud(url || "");
+  if (!normalizada) return "";
+
+  const widget = "https://w.soundcloud.com/player/?url=" +
+    encodeURIComponent(normalizada) +
+    "&auto_play=" + (autoplay ? "true" : "false") +
+    "&visual=false&show_artwork=false&show_comments=false&show_user=false" +
+    "&hide_related=true&show_teaser=false&color=%23c7ff4a";
+
+  return `<iframe id="${id}" src="${widget}"
+    title="Reproductor de audio de SoundCloud"
+    allow="autoplay; encrypted-media"
+    loading="eager"
+    referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+}
+
 function dibujarActual(prefijo) {
   const c = datos.actual;
-  document.getElementById(prefijo + "Titulo").textContent = c ? c.titulo : "Aún no hay canción";
-  document.getElementById(prefijo + "Artista").textContent = c ? (c.artista || "Artista no indicado") : "Elige una canción de la cola";
-  document.getElementById(prefijo + "Usuario").textContent = c && c.usuario ? "Pedido por " + c.usuario : "";
+
+  document.getElementById(prefijo + "Titulo").textContent =
+    c ? c.titulo : "Aún no hay canción";
+  document.getElementById(prefijo + "Artista").textContent =
+    c ? (c.artista || "Artista no indicado") : "Elige una canción de la cola";
+  document.getElementById(prefijo + "Usuario").textContent =
+    c && c.usuario ? "Pedido por " + c.usuario : "";
+
+  const imagen = document.getElementById(prefijo + "Portada");
+  if (imagen) {
+    imagen.src = c && c.portada ? c.portada : "";
+    imagen.classList.toggle("oculto", !(c && c.portada));
+  }
+
+  const esModerador = prefijo === "actual";
+  const marco = document.getElementById(
+    esModerador ? "reproductorSoundCloud" : "pubReproductorSoundCloud"
+  );
+
+  if (marco) {
+    if (c && c.soundcloudUrl) {
+      const urlGuardada = marco.dataset.trackUrl || "";
+      const idGuardado = marco.dataset.trackId || "";
+
+      // No recargar el audio cada vez que se reorganiza la cola.
+      if (
+        urlGuardada !== c.soundcloudUrl ||
+        idGuardado !== c.id ||
+        !marco.querySelector("iframe")
+      ) {
+        marco.innerHTML = soundcloudPlayer(
+          c.soundcloudUrl,
+          esModerador && autoIniciarActual,
+          esModerador ? "scWidgetActual" : "scWidgetPublico"
+        );
+        marco.dataset.trackUrl = c.soundcloudUrl;
+        marco.dataset.trackId = c.id;
+
+        if (esModerador) {
+          iframeWidgetVinculado = null;
+          conectarEventoFinSoundCloud();
+        }
+      }
+      marco.classList.remove("oculto");
+    } else {
+      marco.innerHTML = "";
+      marco.dataset.trackUrl = "";
+      marco.dataset.trackId = "";
+      marco.classList.add("oculto");
+
+      if (esModerador) iframeWidgetVinculado = null;
+    }
+  }
+
+  if (esModerador) {
+    const boton = document.getElementById("botonVistaPrevia");
+    if (boton) boton.disabled = !(c && (c.previewUrl || c.soundcloudUrl));
+
+    const aviso = document.getElementById("avisoSoundCloud");
+    if (aviso) {
+      aviso.textContent = c && c.soundcloudUrl
+        ? "La app intentará iniciar el audio. Si Chrome lo bloquea, pulsa «▶ Reproducir». Al terminar, pasará a la siguiente canción si hay una en cola."
+        : "Para reproducir la canción completa, pega el enlace de su pista de SoundCloud.";
+    }
+  }
 }
 
 function dibujar() {
@@ -241,27 +420,110 @@ function dibujar() {
   document.getElementById("pubCantidad").textContent = "(" + total + ")";
 
   document.getElementById("cola").innerHTML = total
-    ? datos.cola.map((c,i) => bloqueCancion(c,i,true)).join("")
+    ? datos.cola.map((c, i) => bloqueCancion(c, i, true)).join("")
     : '<div class="vacio">Aún no hay canciones. Añade una con el formulario.</div>';
 
   document.getElementById("pubCola").innerHTML = total
-    ? datos.cola.map((c,i) => bloqueCancion(c,i,false)).join("")
+    ? datos.cola.map((c, i) => bloqueCancion(c, i, false)).join("")
     : '<div class="vacio">No hay canciones en espera.</div>';
 }
 
 function ponerActual(id) {
   const indice = datos.cola.findIndex(c => c.id === id);
   if (indice < 0) return;
-  datos.actual = datos.cola.splice(indice,1)[0];
+
+  detenerPreview();
+  datos.actual = datos.cola.splice(indice, 1)[0];
+  autoIniciarActual = true;
   guardar();
+
+  // Intenta iniciar el audio después de la selección del moderador.
+  setTimeout(iniciarWidgetActual, 400);
+}
+
+function iniciarWidgetActual() {
+  if (!datos.actual) return;
+
+  const iframe = document.getElementById("scWidgetActual");
+
+  if (!iframe || !datos.actual.soundcloudUrl) {
+    // Si solo existe una vista previa del catálogo, reproducirla.
+    if (datos.actual.previewUrl && !datos.actual.soundcloudUrl) {
+      reproducirUrlPreview(datos.actual.previewUrl);
+    }
+    return;
+  }
+
+  if (!window.SC || !window.SC.Widget) return;
+
+  try {
+    const widget = window.SC.Widget(iframe);
+    conectarEventoFinSoundCloud();
+
+    // SoundCloud puede ignorar el autoplay; por eso también existe el botón manual.
+    widget.play();
+  } catch (e) {
+    // El botón Reproducir permanece disponible si falla el inicio automático.
+  }
+}
+
+function conectarEventoFinSoundCloud() {
+  const iframe = document.getElementById("scWidgetActual");
+
+  if (
+    !iframe ||
+    iframe === iframeWidgetVinculado ||
+    !window.SC ||
+    !window.SC.Widget
+  ) return;
+
+  iframeWidgetVinculado = iframe;
+
+  try {
+    const widget = window.SC.Widget(iframe);
+
+    widget.bind(window.SC.Widget.Events.FINISH, () => {
+      if (iframe !== document.getElementById("scWidgetActual")) return;
+      avanzarAutomaticamente();
+    });
+  } catch (e) {
+    iframeWidgetVinculado = null;
+  }
+}
+
+function avanzarAutomaticamente() {
+  if (avanzandoPorFin) return;
+
+  avanzandoPorFin = true;
+  audioPreview.pause();
+  audioPreview.currentTime = 0;
+
+  if (datos.cola.length > 0) {
+    datos.actual = datos.cola.shift();
+    autoIniciarActual = true;
+    guardar();
+
+    setTimeout(iniciarWidgetActual, 400);
+  } else {
+    datos.actual = null;
+    autoIniciarActual = false;
+    guardar();
+  }
+
+  setTimeout(() => {
+    avanzandoPorFin = false;
+  }, 1200);
 }
 
 function mover(id, direccion) {
   const indice = datos.cola.findIndex(c => c.id === id);
   const destino = indice + direccion;
+
   if (indice < 0 || destino < 0 || destino >= datos.cola.length) return;
+
   [datos.cola[indice], datos.cola[destino]] =
     [datos.cola[destino], datos.cola[indice]];
+
   guardar();
 }
 
@@ -272,24 +534,27 @@ function eliminar(id) {
 
 function terminar() {
   if (!datos.actual) return alert("No hay canción actual.");
-  datos.actual = null;
-  guardar();
+  avanzarAutomaticamente();
 }
 
 function quitarActual() {
+  detenerPreview();
   datos.actual = null;
+  autoIniciarActual = false;
   guardar();
 }
 
 function duplicados() {
   const antes = datos.cola.length;
   const vistos = new Set();
+
   datos.cola = datos.cola.filter(c => {
     const clave = (c.titulo + "|" + c.artista).toLowerCase().trim();
     if (vistos.has(clave)) return false;
     vistos.add(clave);
     return true;
   });
+
   guardar();
   alert("Duplicados eliminados: " + (antes - datos.cola.length));
 }
@@ -298,6 +563,214 @@ function vaciar() {
   if (!confirm("¿Seguro que quieres vaciar las canciones en espera?")) return;
   datos.cola = [];
   guardar();
+}
+
+/* Catálogo musical */
+function buscarCatalogo() {
+  const consulta = document.getElementById("busquedaMusica").value.trim();
+  const estado = document.getElementById("estadoBusqueda");
+  const contenedor = document.getElementById("resultadosBusqueda");
+  const boton = document.getElementById("botonBuscarMusica");
+
+  if (!consulta) {
+    estado.textContent = "Escribe el título o el artista que quieres buscar.";
+    contenedor.innerHTML = "";
+    return;
+  }
+
+  boton.disabled = true;
+  estado.textContent = "Buscando canciones…";
+  contenedor.innerHTML = "";
+  resultadosCatalogo = [];
+
+  const nombreCallback = "itunesCallback_" +
+    Date.now() + "_" + Math.random().toString(36).slice(2);
+  const script = document.createElement("script");
+  let finalizado = false;
+
+  function limpiar() {
+    if (finalizado) return;
+    finalizado = true;
+    boton.disabled = false;
+
+    if (script.parentNode) script.parentNode.removeChild(script);
+
+    try {
+      delete window[nombreCallback];
+    } catch (e) {
+      window[nombreCallback] = undefined;
+    }
+
+    clearTimeout(temporizador);
+  }
+
+  window[nombreCallback] = function(datosCatalogo) {
+    limpiar();
+
+    resultadosCatalogo = (datosCatalogo.results || []).map(c => ({
+      titulo: c.trackName || "Título desconocido",
+      artista: c.artistName || "Artista no indicado",
+      portada: (c.artworkUrl100 || "").replace("100x100bb", "600x600bb"),
+      previewUrl: c.previewUrl || "",
+      trackId: c.trackId || ""
+    }));
+
+    if (!resultadosCatalogo.length) {
+      estado.textContent = "No encontramos resultados. Prueba otro título o artista.";
+      return;
+    }
+
+    estado.textContent = "Elige la versión correcta y prepara la solicitud.";
+
+    contenedor.innerHTML = resultadosCatalogo.map((c, i) => `
+      <div class="resultado-musica">
+        ${c.portada
+          ? `<img class="portada" src="${escapar(c.portada)}" alt="Portada" loading="lazy">`
+          : `<div class="portada"></div>`}
+        <div class="resultado-detalle">
+          <strong>${escapar(c.titulo)}</strong>
+          <div class="artista">${escapar(c.artista)}</div>
+          <div class="acciones">
+            <button class="principal" type="button"
+              onclick="prepararResultadoCatalogo(${i})">✎ Preparar solicitud</button>
+            <button class="secundario" type="button"
+              onclick="buscarEnSoundCloud(${i})">☁ Buscar en SoundCloud</button>
+            ${c.previewUrl
+              ? `<button class="secundario" type="button"
+                  onclick="reproducirPreview(${i})">▶ Vista previa</button>`
+              : `<span class="suave" style="font-size:12px">Sin vista previa</span>`}
+          </div>
+        </div>
+      </div>`).join("");
+  };
+
+  script.onerror = function() {
+    limpiar();
+    estado.textContent = "No se pudo conectar con el catálogo. Comprueba tu conexión.";
+  };
+
+  const temporizador = setTimeout(() => {
+    limpiar();
+    estado.textContent = "La búsqueda tardó demasiado. Inténtalo otra vez.";
+  }, 12000);
+
+  script.src = "https://itunes.apple.com/search?term=" +
+    encodeURIComponent(consulta) +
+    "&entity=song&limit=12&country=PE&callback=" +
+    encodeURIComponent(nombreCallback);
+
+  document.head.appendChild(script);
+}
+
+document.getElementById("busquedaMusica").addEventListener("keydown", evento => {
+  if (evento.key === "Enter") {
+    evento.preventDefault();
+    buscarCatalogo();
+  }
+});
+
+function prepararResultadoCatalogo(indice) {
+  const c = resultadosCatalogo[indice];
+  if (!c) return;
+
+  seleccionCatalogo = c;
+  document.getElementById("titulo").value = c.titulo;
+  document.getElementById("artista").value = c.artista;
+  document.getElementById("soundcloudUrl").value = "";
+  document.getElementById("titulo").focus();
+
+  document.getElementById("estadoBusqueda").textContent =
+    "Título y artista preparados. Busca la pista en SoundCloud, pega su enlace, " +
+    "escribe el usuario y pulsa «Añadir a la cola».";
+}
+
+function buscarEnSoundCloud(indice) {
+  const c = resultadosCatalogo[indice];
+  if (!c) return;
+
+  const consulta = encodeURIComponent(c.titulo + " " + c.artista);
+  window.open(
+    "https://soundcloud.com/search/sounds?q=" + consulta,
+    "_blank",
+    "noopener"
+  );
+}
+
+function normalizarUrlSoundCloud(valor) {
+  if (!valor) return "";
+
+  try {
+    const url = new URL(valor);
+    const host = url.hostname.toLowerCase();
+
+    if (host !== "soundcloud.com" && !host.endsWith(".soundcloud.com")) return "";
+    if (!url.pathname || url.pathname === "/") return "";
+
+    return "https://soundcloud.com" +
+      url.pathname.replace(/\/$/, "") + url.search;
+  } catch (e) {
+    return "";
+  }
+}
+
+function reproducirPreview(indice) {
+  const c = resultadosCatalogo[indice];
+  if (c && c.previewUrl) reproducirUrlPreview(c.previewUrl);
+}
+
+function reproducirActualPreview() {
+  if (!datos.actual) return;
+
+  if (datos.actual.soundcloudUrl) {
+    const marco = document.getElementById("reproductorSoundCloud");
+
+    marco.innerHTML = soundcloudPlayer(
+      datos.actual.soundcloudUrl,
+      true,
+      "scWidgetActual"
+    );
+    marco.dataset.trackUrl = datos.actual.soundcloudUrl;
+    marco.dataset.trackId = datos.actual.id;
+    marco.classList.remove("oculto");
+
+    iframeWidgetVinculado = null;
+    conectarEventoFinSoundCloud();
+    setTimeout(iniciarWidgetActual, 200);
+
+    document.getElementById("avisoSoundCloud").textContent =
+      "Intentando reproducir SoundCloud. Si no empieza, pulsa reproducir en el propio reproductor.";
+  } else if (datos.actual.previewUrl) {
+    reproducirUrlPreview(datos.actual.previewUrl);
+  } else {
+    alert("Esta canción no tiene enlace de SoundCloud ni vista previa.");
+  }
+}
+
+function reproducirUrlPreview(url) {
+  audioPreview.src = url;
+
+  audioPreview.play().catch(() => {
+    alert("El navegador no pudo reproducir la vista previa. Inténtalo otra vez.");
+  });
+}
+
+audioPreview.addEventListener("ended", () => {
+  // Si acaba una vista previa que está sonando como canción actual, avanzar.
+  if (datos.actual && !datos.actual.soundcloudUrl) {
+    avanzarAutomaticamente();
+  }
+});
+
+function detenerPreview() {
+  audioPreview.pause();
+  audioPreview.currentTime = 0;
+
+  const iframe = document.getElementById("scWidgetActual");
+  if (iframe && window.SC && window.SC.Widget) {
+    try {
+      window.SC.Widget(iframe).pause();
+    } catch (e) {}
+  }
 }
 
 dibujar();
